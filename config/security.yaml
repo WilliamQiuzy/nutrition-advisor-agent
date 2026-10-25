@@ -1,0 +1,373 @@
+# Security Configuration for Healthcare AI System
+# This file contains all security-related settings for the enterprise deployment
+
+# General Security Settings
+security:
+  # Master switches for security features
+  enable_all: true  # Override to enable/disable all security features
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  
+  # Feature toggles
+  features:
+    rate_limiting: true
+    cost_monitoring: true
+    audit_logging: true
+    content_filtering: true
+    agent_isolation: true
+    response_validation: true
+
+# Rate Limiting Configuration
+rate_limiting:
+  # Per-user limits
+  user_limits:
+    requests_per_minute: 10
+    requests_per_hour: 100
+    requests_per_day: 1000
+    burst_size: 20  # Allow short bursts up to this limit
+  
+  # Global system limits
+  system_limits:
+    total_requests_per_minute: 1000
+    total_requests_per_hour: 10000
+  
+  # Token limits (for cost control)
+  token_limits:
+    per_user_per_hour: 50000
+    per_user_per_day: 500000
+    system_per_hour: 1000000
+    system_per_day: 10000000
+  
+  # IP-based limits (additional layer)
+  ip_limits:
+    requests_per_minute: 30
+    requests_per_hour: 300
+    
+  # Whitelist (bypasses rate limiting)
+  whitelist:
+    users: []  # Add user IDs here
+    ips: []    # Add IP addresses here
+
+# Cost Monitoring Configuration
+cost_monitoring:
+  # Alert thresholds (in USD)
+  alerts:
+    hourly_warning: 10.0
+    hourly_critical: 25.0
+    daily_warning: 100.0
+    daily_critical: 250.0
+    per_user_hourly: 5.0
+    per_user_daily: 20.0
+  
+  # Model pricing (per 1K tokens)
+  pricing:
+    gpt-4:
+      input: 0.03
+      output: 0.06
+    gpt-4-turbo:
+      input: 0.01
+      output: 0.03
+    gpt-3.5-turbo:
+      input: 0.0005
+      output: 0.0015
+    claude-3-opus:
+      input: 0.015
+      output: 0.075
+    claude-3-sonnet:
+      input: 0.003
+      output: 0.015
+  
+  # Notification channels
+  notifications:
+    email:
+      enabled: true
+      recipients:
+        - "security@nutrirec.example.com"
+        - "ops@nutrirec.example.com"
+    webhook:
+      enabled: true
+      url: "https://api.nutrirec.example.com/webhooks/cost-alerts"
+      secret: "${WEBHOOK_SECRET}"  # From environment variable
+    slack:
+      enabled: false
+      webhook_url: "${SLACK_WEBHOOK_URL}"
+
+# Audit Logging Configuration
+audit_logging:
+  # Storage settings
+  storage:
+    type: "hybrid"  # file, redis, database, hybrid
+    file_path: "/var/log/healthcare-ai/audit"
+    retention_days:
+      patient_data_access: 2555  # 7 years for HIPAA
+      ai_requests: 365          # 1 year
+      security_events: 1095     # 3 years
+      system_events: 90         # 90 days
+      default: 365
+  
+  # Encryption
+  encryption:
+    enabled: true
+    algorithm: "AES-256-GCM"
+    key_rotation_days: 90
+  
+  # Compression
+  compression:
+    enabled: true
+    format: "gzip"
+    level: 6
+  
+  # What to log
+  log_events:
+    authentication: true
+    data_access: true
+    ai_requests: true
+    security_alerts: true
+    configuration_changes: true
+    errors: true
+
+# Content Security Configuration
+content_security:
+  # Medical disclaimer settings
+  disclaimers:
+    enabled: true
+    languages: ["zh", "en"]
+    position: "end"  # start, end, both
+    custom_disclaimers:
+      emergency:
+        zh: "紧急医疗情况请立即拨打120或前往最近的急诊室！"
+        en: "For medical emergencies, call 120 or visit the nearest emergency room immediately!"
+  
+  # Content filtering
+  filtering:
+    # Harmful content patterns
+    block_medical_diagnoses: true
+    block_prescription_advice: true
+    block_dangerous_advice: true
+    
+    # Sensitive terms handling
+    sensitive_terms:
+      action: "flag"  # flag, redact, block
+      notify_moderator: true
+    
+    # Brand protection
+    brand_protection:
+      enabled: true
+      protected_terms:
+        - "NutriRec"
+        - "NutriRec"
+      competitor_handling: "generic"  # generic, redact, block
+
+# Agent Isolation Configuration
+agent_isolation:
+  # Isolation levels by environment
+  isolation_levels:
+    development: "BASIC"
+    staging: "STANDARD"
+    production: "STRICT"
+  
+  # Default permissions by agent type
+  agent_permissions:
+    NutritionConsultant:
+      allowed:
+        - "READ_PATIENT_DATA"
+        - "ACCESS_KNOWLEDGE_BASE"
+        - "EXECUTE_FUNCTIONS"
+      denied:
+        - "WRITE_PATIENT_DATA"
+        - "MODIFY_SYSTEM_CONFIG"
+      max_execution_time: 30
+      max_memory_mb: 512
+      
+    SupplementSpecialist:
+      allowed:
+        - "READ_PATIENT_DATA"
+        - "ACCESS_KNOWLEDGE_BASE"
+        - "EXECUTE_FUNCTIONS"
+      denied:
+        - "WRITE_PATIENT_DATA"
+        - "CALL_EXTERNAL_API"
+      max_execution_time: 30
+      max_memory_mb: 512
+      
+    SafetyAssessor:
+      allowed:
+        - "READ_PATIENT_DATA"
+        - "ACCESS_KNOWLEDGE_BASE"
+        - "EXECUTE_FUNCTIONS"
+        - "CALL_EXTERNAL_API"
+      max_execution_time: 45
+      max_memory_mb: 768
+      
+    FormulationExpert:
+      allowed:
+        - "ACCESS_KNOWLEDGE_BASE"
+        - "EXECUTE_FUNCTIONS"
+      denied:
+        - "READ_PATIENT_DATA"
+        - "WRITE_PATIENT_DATA"
+      max_execution_time: 30
+      max_memory_mb: 512
+      
+    HealthCoach:
+      allowed:
+        - "READ_PATIENT_DATA"
+        - "ACCESS_KNOWLEDGE_BASE"
+      denied:
+        - "WRITE_PATIENT_DATA"
+        - "EXECUTE_FUNCTIONS"
+        - "CALL_EXTERNAL_API"
+      max_execution_time: 20
+      max_memory_mb: 256
+  
+  # Resource limits
+  resource_limits:
+    max_concurrent_agents: 10
+    max_total_memory_gb: 8
+    max_cpu_percentage: 80
+
+# Response Validation Configuration
+response_validation:
+  # Validation rules
+  rules:
+    check_consistency: true
+    check_completeness: true
+    check_accuracy: true
+    detect_conflicts: true
+    check_format: true
+    check_safety: true
+  
+  # Conflict resolution
+  conflict_resolution:
+    enabled: true
+    min_agreement_threshold: 0.7
+    resolution_strategy: "consensus"  # consensus, primary_agent, weighted_average
+  
+  # Required sections by agent type
+  required_sections:
+    NutritionConsultant:
+      - "营养评估"
+      - "建议"
+      - "注意事项"
+    SupplementSpecialist:
+      - "产品推荐"
+      - "成分说明"
+      - "使用方法"
+    SafetyAssessor:
+      - "安全评估"
+      - "相互作用"
+      - "禁忌"
+
+# Security Monitoring Dashboard
+monitoring:
+  # Dashboard settings
+  dashboard:
+    enabled: true
+    port: 9090
+    refresh_interval: 30  # seconds
+    retention_hours: 168  # 7 days
+  
+  # Metrics to track
+  metrics:
+    - request_rate
+    - error_rate
+    - token_usage
+    - cost_tracking
+    - security_events
+    - agent_performance
+    - validation_failures
+  
+  # Alerts
+  alerts:
+    high_error_rate:
+      threshold: 0.05  # 5% error rate
+      window: 300      # 5 minutes
+      severity: "warning"
+    
+    security_breach_attempt:
+      threshold: 3      # 3 attempts
+      window: 60       # 1 minute
+      severity: "critical"
+    
+    cost_spike:
+      threshold: 2.0    # 2x normal rate
+      window: 3600     # 1 hour
+      severity: "warning"
+
+# Integration Settings
+integrations:
+  # Redis configuration
+  redis:
+    host: "${REDIS_HOST:redis}"
+    port: ${REDIS_PORT:6379}
+    password: "${REDIS_PASSWORD:}"
+    db: ${REDIS_DB:0}
+    ssl: ${REDIS_SSL:false}
+    connection_pool_size: 20
+  
+  # Database configuration (for audit logs)
+  database:
+    enabled: false
+    type: "postgresql"
+    connection_string: "${DATABASE_URL:}"
+  
+  # External services
+  external_services:
+    fhir_server:
+      validate_ssl: true
+      timeout: 30
+      max_retries: 3
+    
+    openai_api:
+      timeout: 60
+      max_retries: 2
+      exponential_backoff: true
+
+# Environment-specific overrides
+environments:
+  development:
+    security:
+      features:
+        agent_isolation: false  # Disable for faster development
+    rate_limiting:
+      user_limits:
+        requests_per_minute: 100  # More lenient for testing
+    audit_logging:
+      storage:
+        type: "file"  # Simple file logging for dev
+  
+  staging:
+    # Inherits all production settings
+    # Add specific overrides if needed
+  
+  production:
+    security:
+      log_level: "WARNING"  # Less verbose in production
+    agent_isolation:
+      isolation_levels:
+        production: "STRICT"  # Enforce strict isolation
+    audit_logging:
+      encryption:
+        enabled: true  # Always encrypt in production
+        
+# Compliance Settings
+compliance:
+  # HIPAA compliance
+  hipaa:
+    enabled: true
+    phi_handling: "encrypt"  # encrypt, redact, block
+    audit_all_access: true
+    minimum_necessary: true
+  
+  # GDPR compliance
+  gdpr:
+    enabled: true
+    consent_required: true
+    right_to_deletion: true
+    data_portability: true
+  
+  # Regional compliance
+  regional:
+    china:
+      enabled: true
+      data_localization: true
+      real_name_verification: false

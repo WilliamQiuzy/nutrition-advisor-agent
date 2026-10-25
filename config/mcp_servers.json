@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "description": "Context7 MCP server for enhanced context management and memory",
+      "capabilities": ["context_management", "memory_storage", "retrieval"],
+      "enabled": true,
+      "env": {
+        "UPSTASH_REDIS_REST_URL": "${UPSTASH_REDIS_REST_URL}",
+        "UPSTASH_REDIS_REST_TOKEN": "${UPSTASH_REDIS_REST_TOKEN}"
+      }
+    },
+    "fhir-healthcare": {
+      "command": "python",
+      "args": ["-m", "fhir_mcp_server"],
+      "description": "Local FHIR MCP server for healthcare data management",
+      "capabilities": ["fhir_resources", "patient_data", "clinical_data"],
+      "enabled": true,
+      "cwd": "./fhir_mcp_server",
+      "env": {
+        "FHIR_BASE_URL": "${FHIR_BASE_URL:-https://hapi.fhir.org/baseR4}",
+        "MCP_SERVER_PORT": "${MCP_SERVER_PORT:-8004}",
+        "FHIR_CLIENT_ID": "${FHIR_CLIENT_ID:-healthcare_ai_agent}"
+      }
+    }
+  },
+  "global_settings": {
+    "timeout": 30,
+    "max_retries": 3,
+    "log_level": "INFO",
+    "enable_monitoring": true
+  }
+} 

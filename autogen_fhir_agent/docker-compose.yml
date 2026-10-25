@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # HAPI FHIR服务器
+  hapi-fhir:
+    image: hapiproject/hapi:latest
+    container_name: nutrirec-fhir-server
+    ports:
+      - "8080:8080"
+    environment:
+      # 数据库配置
+      - spring.datasource.url=jdbc:postgresql://fhir-db:5432/hapi
+      - spring.datasource.username=hapi
+      - spring.datasource.password=HapiPassword123
+      - spring.datasource.driverClassName=org.postgresql.Driver
+      - spring.jpa.database-platform=org.hibernate.dialect.PostgreSQL10Dialect
+      
+      # FHIR配置
+      - hapi.fhir.default_encoding=json
+      - hapi.fhir.default_pretty_print=true
+      - hapi.fhir.default_page_size=20
+      - hapi.fhir.max_page_size=200
+      - hapi.fhir.server_address=http://localhost:8080/fhir/
+      
+      # 启用搜索功能
+      - hapi.fhir.allow_multiple_delete=true
+      - hapi.fhir.reuse_cached_search_results_millis=60000
+      
+      # 日志配置
+      - logging.level.ca.uhn.fhir.jpa=INFO
+      
+    depends_on:
+      - fhir-db
+    volumes:
+      - hapi_lucene_data:/data/hapi/lucenefiles
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/fhir/metadata"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # PostgreSQL数据库
+  fhir-db:
+    image: postgres:13
+    container_name: nutrirec-fhir-db
+    environment:
+      - POSTGRES_DB=hapi
+      - POSTGRES_USER=hapi
+      - POSTGRES_PASSWORD=HapiPassword123
+    volumes:
+      - fhir_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hapi"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis缓存 (可选，提升性能)
+  redis:
+    image: redis:6-alpine
+    container_name: nutrirec-fhir-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  fhir_db_data:
+    driver: local
+  hapi_lucene_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: nutrirec-fhir-network
